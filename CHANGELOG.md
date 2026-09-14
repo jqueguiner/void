@@ -7,17 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- **Archive** — `void archive <id>` now dismisses the whole context group behind the item (Slack thread, Slack 1-hour channel group, Gmail thread) instead of a single row. The inbox shows one row per context, so archiving only the visible id let an older sibling resurface as the next representative. The response gains `archived_count` (rows newly archived by the call, `0` when it was already archived), and Gmail pushes the group in one `batchModify` request.
+## [0.12.0] - 2026-09-14
 
 ### Added
 
 - **Circleback** — new read-only connector for [Circleback](https://circleback.ai) meetings. Each meeting becomes a conversation carrying its notes, its action items and (optionally) every transcript turn, so meeting content is searchable alongside messages. Configure with `api_key`, `backfill_days` (default 365) and `include_transcript` (default true); `void setup` has a wizard for it.
+- **Gmail** — `void gmail search` and `void gmail thread` read from the local INBOX store when a usable body is already synced. `--live` forces the Gmail API (`in:sent`, drafts, and unsynced mail still go to the network).
+- **Gmail** — Cross-process token bucket (~90 requests / 60s per account, stored in SQLite) so the CLI and sync daemon share quota instead of stampeding after a 429.
 - **Remote** — `void remote status` reports `local_version` and `remote_version` so version skew between the client and the server binary is visible at a glance.
 
 ### Fixed
 
+- **Slack** — Retry HTTP 5xx and retryable JSON errors (`internal_error`, `fatal_error`) on every GET/POST, including sends, with the same `Retry-After` backoff as 429.
+- **Gmail** — Retry transient API failures (429, 5xx, and 403 `rateLimitExceeded`) with exponential backoff, honouring `Retry-After` and the retry timestamp in Google's error body.
+- **WhatsApp** — `void send` / `void reply` no longer report success on a dead or dying socket. Sends fail fast when the connection is down, and after the write a ping must round-trip before success is printed; if it does not, the command exits non-zero and says delivery is unknown.
+- **WhatsApp** — History sync after pairing is stored again. The library now delivers the backfill one conversation at a time, so the old bulk handler never ran and the pairing dump was dropped (observed: 775 conversations parsed, 4 rows stored). Progress is logged every 250 messages.
+- **Archive** — `void archive <id>` now dismisses the whole context group behind the item (Slack thread, Slack 1-hour channel group, Gmail thread) instead of a single row. The inbox shows one row per context, so archiving only the visible id let an older sibling resurface as the next representative. The response gains `archived_count` (rows newly archived by the call, `0` when it was already archived), and Gmail pushes the group in one `batchModify` request.
 - **Remote** — Proxied write commands print a warning on stderr when the server's `void` is a different version than the local client, instead of surfacing confusing `unexpected argument` errors from the older remote binary.
 
 ## [0.11.1] - 2026-08-20
